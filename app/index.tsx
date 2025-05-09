@@ -1,146 +1,330 @@
-import React, { useContext } from "react";
-import { useRouter } from "expo-router";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { componentsList } from "@/utils/list";
-import { ScrollView } from "@/components/ui/scroll-view";
 import { Box } from "@/components/ui/box";
-import { Image as ExpoImage } from "expo-image";
 import { Text } from "@/components/ui/text";
-import { Pressable } from "@/components/ui/pressable";
+import { Heading } from "@/components/ui/heading";
 import { cssInterop } from "nativewind";
 import { ColorModeContext } from "./_layout";
+import { Spinner } from "@/components/ui/spinner";
+import { Alert } from "@/components/ui/alert";
+import { AlertIcon } from "@/components/ui/alert";
+import {
+  InfoIcon,
+  SearchIcon,
+  SunIcon,
+  MoonIcon,
+  ChevronDownIcon,
+  Icon,
+} from "@/components/ui/icon";
+import { ProductCard } from "@/components/custom/ProductCard";
+import { supabase, Tables } from "@/lib/supabase";
+import { FlatList, useWindowDimensions, TouchableOpacity } from "react-native";
+import { Input } from "@/components/ui/input";
+import { InputField } from "@/components/ui/input";
+import { InputIcon } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ButtonText } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { BadgeText } from "@/components/ui/badge";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
-import { Heading } from "@/components/ui/heading";
-import { ChevronRightIcon, Icon } from "@/components/ui/icon";
+import { Popover } from "@/components/ui/popover";
+import { PopoverBackdrop } from "@/components/ui/popover";
+import { PopoverContent } from "@/components/ui/popover";
+import { PopoverHeader } from "@/components/ui/popover";
+import { PopoverBody } from "@/components/ui/popover";
+import { PopoverFooter } from "@/components/ui/popover";
+import { PopoverCloseButton } from "@/components/ui/popover";
+import { ScrollView } from "@/components/ui/scroll-view";
 
 cssInterop(SafeAreaView, { className: "style" });
-cssInterop(ExpoImage, { className: "style" });
 
-const ComponentCard = ({ component, onPress }: any) => {
-  const { colorMode }: any = useContext(ColorModeContext);
-  return (
-    <Pressable
-      className={`flex-1 rounded-xl bg-background-0 w-full h-full sm:gap-2 gap-1 flex flex-col lg:p-4 ${colorMode === "light" ? "lg:shadow-[0px_0px_4.374px_0px_rgba(38,38,38,0.10)] data-[hover=true]:lg:border data-[hover=true]:border-outline-100" : "lg:shadow-soft-1 lg:border border-outline-50 data-[hover=true]:border-outline-200"}`}
-      onPress={onPress}
-    >
-      <Box className="rounded-lg bg-background-50 px-3 lg:px-6 py-[14px] lg:py-7 aspect-[17/12]">
-        <ExpoImage
-          source={{
-            uri: colorMode === "light" ? component.url : component.darkUrl,
-          }}
-          alt={component.title}
-          className={`flex-1 rounded lg:rounded-md shadow-[0px_0px_1.998px_0px_rgba(38,38,38,0.10)]`}
-          cachePolicy="memory-disk"
-        />
-      </Box>
-      <HStack className="justify-between px-1.5 mt-1">
-        <Text className="text-typography-900 font-medium sm:text-base text-sm lg:text-xl">
-          {component.title}
-        </Text>
-        <Icon
-          as={ChevronRightIcon}
-          size="sm"
-          className="text-background-400 lg:hidden"
-        />
-      </HStack>
-    </Pressable>
-  );
-};
-
-const Header = () => {
-  const { colorMode }: any = useContext(ColorModeContext);
-  return (
-    <HStack className="flex-1 max-w-[1730px] w-full mx-auto justify-between">
-      <VStack className="w-full md:max-w-[630px] lg:max-w-[400px] xl:max-w-[480px] mx-5 md:ml-8 mb-8 mt-10 lg:my-[44px] xl:ml-[80px] flex-1">
-        <HStack
-          className="rounded-full bg-background-0 py-4 px-5 mb-7 md:mb-9 lg:mb-[80px] xl:mb-[132px] items-center native:max-w-[250px] w-fit"
-          space="sm"
-        >
-          <ExpoImage
-            source={{
-              uri:
-                colorMode === "light"
-                  ? "https://i.imgur.com/9bvua6C.png"
-                  : "https://i.imgur.com/EUqtUMu.png",
-            }}
-            alt="logo_image"
-            className="h-5 w-5 rounded-sm lg:h-6 lg:w-6 xl:h-7 xl:w-7"
-          />
-          <Text className="font-medium text-sm lg:text-base xl:text-lg text-typography-900">
-            Powered by gluestack-ui v2
-          </Text>
-        </HStack>
-        <Heading className="mb-2 xl:mb-[18px] text-4xl lg:text-5xl xl:text-[56px]">
-          Kitchensink app
-        </Heading>
-        <Text className="text-sm lg:text-base xl:text-lg">
-          Kitchensink is a comprehensive demo app showcasing all the gluestack
-          components in action. It includes buttons, forms, icons and much more!
-        </Text>
-      </VStack>
-      <VStack className="hidden lg:flex flex-1 max-h-[510px] h-full aspect-[1075/510]">
-        <ExpoImage
-          source={{
-            uri:
-              colorMode === "light"
-                ? "https://i.imgur.com/sxY9qxx.png"
-                : "https://i.imgur.com/icZHMep.png",
-          }}
-          alt="header_image"
-          className="flex-1"
-          cachePolicy="memory-disk"
-        />
-      </VStack>
-    </HStack>
-  );
-};
+type Product = Tables["products"];
 
 export default function HomeScreen() {
-  const router = useRouter();
+  const { colorMode, setColorMode }: any = useContext(ColorModeContext);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { width } = useWindowDimensions();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Determine number of columns based on screen width
+  const numColumns = width > 768 ? 3 : 2;
+
+  // Fetch products from Supabase
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const { data, error } = await supabase.from("products").select("*");
+
+        if (error) {
+          throw error;
+        }
+
+        setProducts(data || []);
+        setFilteredProducts(data || []);
+
+        // Extract unique categories
+        const uniqueCategories = Array.from(
+          new Set(data?.map((product) => product.category).filter(Boolean))
+        ) as string[];
+
+        setCategories(uniqueCategories);
+      } catch (err: any) {
+        setError(err.message || "An error occurred while fetching products");
+        console.error("Error fetching products:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProducts();
+  }, []);
+
+  // Filter products based on search query and selected category
+  useEffect(() => {
+    let result = products;
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (product) =>
+          product.title.toLowerCase().includes(query) ||
+          product.description?.toLowerCase().includes(query) ||
+          product.category?.toLowerCase().includes(query) ||
+          product.tags?.some((tag) => tag.toLowerCase().includes(query))
+      );
+    }
+
+    if (selectedCategory) {
+      result = result.filter(
+        (product) => product.category === selectedCategory
+      );
+    }
+
+    setFilteredProducts(result);
+  }, [searchQuery, selectedCategory, products]);
+
+  // Toggle theme between light and dark
+  const toggleTheme = () => {
+    if (setColorMode) {
+      setColorMode(colorMode === "light" ? "dark" : "light");
+    }
+  };
+
+  // Render the ProductCards inside the list
+  const renderProductItem = ({ item }: { item: Product }) => (
+    <Box
+      style={{
+        flex: 1,
+        padding: 8,
+        width: `${100 / numColumns}%`,
+      }}
+    >
+      <ProductCard product={item} />
+    </Box>
+  );
+
+  // Reset all filters
+  const resetFilters = () => {
+    setSearchQuery("");
+    setSelectedCategory(null);
+  };
 
   return (
-    <SafeAreaView className="flex-1 bg-background-0 relative">
-      <ScrollView>
-        <Box className="bg-background-50 flex-1">
-          <Header />
-        </Box>
-        <HStack
-          className="flex-wrap justify-center gap-x-3 gap-y-4 md:gap-x-4 lg:gap-x-7 lg:gap-y-8 py-6 px-5 md:px-8 md:pt-9 xl:pt-[90px] lg:pt-[70px] lg:px-[70px] xl:px-[100px] max-w-[1730px] mx-auto"
-        >
-          {componentsList.map((component, index) => (
-            <Box
-              key={index}
-              className="w-[160px] h-[145px] md:w-[224px] md:h-[194px] lg:w-[274px] lg:h-[244px] xl:w-[390px] xl:h-[328px]"
-            >
-              <ComponentCard
-                component={component}
-                //@ts-ignore
-                onPress={() => router.push(component.link)}
-              />
-            </Box>
-          ))}
-        </HStack>
+    <SafeAreaView className="flex-1 bg-zinc-100 dark:bg-zinc-900 relative">
+      <VStack
+        space="md"
+        className="bg-zinc-200 dark:bg-zinc-800 py-4 px-4 border-b border-zinc-300 dark:border-zinc-700"
+      >
+        <Box className="flex flex-row justify-between items-center">
+          <Heading className="text-2xl lg:text-3xl text-zinc-900 dark:text-zinc-100">
+            Tokens App
+          </Heading>
 
-        {/* <Box className="bg-background-0">
-          <Grid
-            className="gap-x-3 gap-y-4 md:gap-x-4 lg:gap-x-7 lg:gap-y-8 py-6 px-5 md:px-8 md:pt-9 xl:pt-[90px] lg:pt-[70px] lg:px-[70px] xl:px-[100px] max-w-[1730px] mx-auto"
-            _extra={{
-              className: "grid-cols-2 md:grid-cols-3",
-            }}
-          >
-            {componentsList.map((component, index) => (
-              <GridItem key={index} _extra={{ className: "col-span-1" }}>
-                <ComponentCard
-                  component={component}
-                  //@ts-ignore
-                  onPress={() => router.push(component.link)}
+          <Popover
+            trigger={(triggerProps) => (
+              <Button
+                variant="outline"
+                action="secondary"
+                size="sm"
+                {...triggerProps}
+                onPress={() => setIsSettingsOpen(true)}
+                className="bg-zinc-100 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600"
+              >
+                <ButtonText className="text-zinc-800 dark:text-zinc-200">
+                  Settings
+                </ButtonText>
+                <Icon
+                  as={ChevronDownIcon}
+                  size="sm"
+                  className="text-zinc-800 dark:text-zinc-200 ml-1"
                 />
-              </GridItem>
+              </Button>
+            )}
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+          >
+            <PopoverBackdrop />
+            <PopoverContent className="bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700">
+              <PopoverHeader className="border-b border-zinc-300 dark:border-zinc-700">
+                <Text className="text-zinc-900 dark:text-zinc-100 font-medium">
+                  Settings
+                </Text>
+              </PopoverHeader>
+              <PopoverBody>
+                <Box>
+                  <TouchableOpacity onPress={toggleTheme}>
+                    <Box className="flex flex-row items-center py-2">
+                      <Icon
+                        as={colorMode === "light" ? SunIcon : MoonIcon}
+                        size="md"
+                        className="text-zinc-800 dark:text-zinc-200 mr-3"
+                      />
+                      <Text className="text-zinc-900 dark:text-zinc-100">
+                        {colorMode === "light" ? "Light Mode" : "Dark Mode"}
+                      </Text>
+                    </Box>
+                  </TouchableOpacity>
+                </Box>
+              </PopoverBody>
+            </PopoverContent>
+          </Popover>
+        </Box>
+
+        <Input
+          variant="outline"
+          size="md"
+          className="bg-zinc-100 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600"
+        >
+          <InputField
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search products..."
+            className="text-zinc-900 dark:text-zinc-100"
+            placeholderTextColor={colorMode === "dark" ? "#a1a1aa" : "#71717a"}
+          />
+          <InputIcon className="text-zinc-500 dark:text-zinc-400">
+            <Icon as={SearchIcon} />
+          </InputIcon>
+        </Input>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <HStack space="xs" className="py-1">
+            <Button
+              variant={selectedCategory === null ? "solid" : "outline"}
+              action={selectedCategory === null ? "primary" : "secondary"}
+              size="xs"
+              onPress={() => setSelectedCategory(null)}
+              className={
+                selectedCategory === null
+                  ? "bg-zinc-700 dark:bg-zinc-200"
+                  : "bg-zinc-100 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600"
+              }
+            >
+              <ButtonText
+                className={
+                  selectedCategory === null
+                    ? "text-zinc-100 dark:text-zinc-900"
+                    : "text-zinc-800 dark:text-zinc-200"
+                }
+              >
+                All
+              </ButtonText>
+            </Button>
+
+            {categories.map((category) => (
+              <Button
+                key={category}
+                variant={selectedCategory === category ? "solid" : "outline"}
+                action={selectedCategory === category ? "primary" : "secondary"}
+                size="xs"
+                onPress={() => setSelectedCategory(category)}
+                className={
+                  selectedCategory === category
+                    ? "bg-zinc-700 dark:bg-zinc-200"
+                    : "bg-zinc-100 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600"
+                }
+              >
+                <ButtonText
+                  className={
+                    selectedCategory === category
+                      ? "text-zinc-100 dark:text-zinc-900"
+                      : "text-zinc-800 dark:text-zinc-200"
+                  }
+                >
+                  {category}
+                </ButtonText>
+              </Button>
             ))}
-          </Grid>
-        </Box> */}
-      </ScrollView>
+          </HStack>
+        </ScrollView>
+
+        {(searchQuery || selectedCategory) && (
+          <Box className="flex flex-row justify-between items-center">
+            <Text className="text-xs text-zinc-500 dark:text-zinc-400">
+              {filteredProducts.length} products found
+            </Text>
+            <Button
+              variant="link"
+              action="secondary"
+              size="xs"
+              onPress={resetFilters}
+            >
+              <ButtonText className="text-zinc-500 dark:text-zinc-400">
+                Reset filters
+              </ButtonText>
+            </Button>
+          </Box>
+        )}
+      </VStack>
+
+      <Box className="flex-1">
+        {loading ? (
+          <Box className="flex items-center justify-center py-10">
+            <Spinner
+              size="large"
+              className="text-zinc-600 dark:text-zinc-400"
+            />
+            <Text className="mt-4 text-zinc-600 dark:text-zinc-400">
+              Loading products...
+            </Text>
+          </Box>
+        ) : error ? (
+          <Box className="p-4">
+            <Alert action="error" className="mb-4 bg-red-100 dark:bg-red-900">
+              <AlertIcon as={InfoIcon} />
+              <Text className="text-red-700 dark:text-red-200">{error}</Text>
+            </Alert>
+          </Box>
+        ) : filteredProducts.length === 0 ? (
+          <Box className="p-4">
+            <Alert action="info" className="mb-4 bg-blue-100 dark:bg-blue-900">
+              <AlertIcon as={InfoIcon} />
+              <Text className="text-blue-700 dark:text-blue-200">
+                No products found. Try adjusting your filters.
+              </Text>
+            </Alert>
+          </Box>
+        ) : (
+          <FlatList
+            key={`grid-${numColumns}`} // Key changes when columns change, forcing complete re-render
+            data={filteredProducts}
+            numColumns={numColumns}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ padding: 12 }}
+            renderItem={renderProductItem}
+            style={{
+              backgroundColor: colorMode === "dark" ? "#18181b" : "#f4f4f5",
+            }} // zinc-900 or zinc-100
+          />
+        )}
+      </Box>
     </SafeAreaView>
   );
 }

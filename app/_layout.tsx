@@ -2,9 +2,8 @@ import React from "react";
 import "../global.css";
 import { Stack, useRouter } from "expo-router";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
-import { Icon, ChevronLeftIcon, SunIcon, MoonIcon } from "@/components/ui/icon";
+import { Icon, ChevronLeftIcon } from "@/components/ui/icon";
 import { StyleSheet, Platform } from "react-native";
-import { Fab } from "@/components/ui/fab";
 import { Pressable } from "@/components/ui/pressable";
 import { StatusBar } from "expo-status-bar";
 
@@ -57,7 +56,7 @@ export default function RootLayout() {
         style="auto" //android
         backgroundColor={`${colorMode == "light" ? "#F6F6F6" : "#272625"}`}
       />
-      <ColorModeContext.Provider value={{ colorMode }}>
+      <ColorModeContext.Provider value={{ colorMode, setColorMode }}>
         <GluestackUIProvider mode={colorMode}>
           <Stack screenOptions={{ animation: "slide_from_right" }}>
             <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -145,16 +144,6 @@ export default function RootLayout() {
             />
             <Stack.Screen name="vstack" options={getHeaderOptions("VStack")} />
           </Stack>
-
-          <Fab
-            className="bottom-10 sm:right-10 right-6 p-4 z-0"
-            onPress={handleColorMode}
-          >
-            <Icon
-              as={colorMode === "light" ? SunIcon : MoonIcon}
-              className="text-typography-0"
-            />
-          </Fab>
         </GluestackUIProvider>
       </ColorModeContext.Provider>
     </>
