@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "../global.css";
 import { Stack, useRouter } from "expo-router";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
@@ -26,6 +26,17 @@ const CustomBackButton = () => {
 
 export default function RootLayout() {
   const [colorMode, setColorMode] = React.useState<"light" | "dark">("light");
+
+  // Apply dark class to document when in dark mode (for web)
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      if (colorMode === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+  }, [colorMode]);
 
   const styles = StyleSheet.create({
     header: {

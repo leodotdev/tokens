@@ -1,44 +1,47 @@
-import React from 'react';
-import { config } from './config';
-import { ColorSchemeName, useColorScheme, View, ViewProps } from 'react-native';
-import { OverlayProvider } from '@gluestack-ui/overlay';
-import { ToastProvider } from '@gluestack-ui/toast';
-import { colorScheme as colorSchemeNW } from 'nativewind';
+import React, { useEffect } from "react";
+import { config } from "./config";
+import { ColorSchemeName, useColorScheme, View, ViewProps } from "react-native";
+import { OverlayProvider } from "@gluestack-ui/overlay";
+import { ToastProvider } from "@gluestack-ui/toast";
+import { colorScheme as colorSchemeNW } from "nativewind";
 
-type ModeType = 'light' | 'dark' | 'system';
+type ModeType = "light" | "dark" | "system";
 
 const getColorSchemeName = (
   colorScheme: ColorSchemeName,
   mode: ModeType
-): 'light' | 'dark' => {
-  if (mode === 'system') {
-    return colorScheme ?? 'light';
+): "light" | "dark" => {
+  if (mode === "system") {
+    return colorScheme ?? "light";
   }
   return mode;
 };
 
 export function GluestackUIProvider({
-  mode = 'light',
+  mode = "light",
   ...props
 }: {
-  mode?: 'light' | 'dark' | 'system';
+  mode?: "light" | "dark" | "system";
   children?: React.ReactNode;
-  style?: ViewProps['style'];
+  style?: ViewProps["style"];
 }) {
   const colorScheme = useColorScheme();
-
   const colorSchemeName = getColorSchemeName(colorScheme, mode);
 
-  colorSchemeNW.set(mode);
+  // Ensure NativeWind knows about the color scheme
+  useEffect(() => {
+    colorSchemeNW.set(colorSchemeName);
+  }, [colorSchemeName]);
 
   return (
     <View
       style={[
         config[colorSchemeName],
         // eslint-disable-next-line react-native/no-inline-styles
-        { flex: 1, height: '100%', width: '100%' },
+        { flex: 1, height: "100%", width: "100%" },
         props.style,
       ]}
+      className={colorSchemeName === "dark" ? "dark" : ""}
     >
       <OverlayProvider>
         <ToastProvider>{props.children}</ToastProvider>
