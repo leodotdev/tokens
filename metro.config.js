@@ -1,6 +1,14 @@
-const { getDefaultConfig } = require('expo/metro-config');
-const { withNativeWind } = require('nativewind/metro');
+// Learn more https://docs.expo.io/guides/customizing-metro
+const { getDefaultConfig } = require("expo/metro-config");
 
-const config = getDefaultConfig(__dirname);
+/** @type {import('expo/metro-config').MetroConfig} */
+const config = getDefaultConfig(__dirname, {
+  // [Web-only]: Enables CSS support in Metro.
+  isCSSEnabled: true,
+});
 
-module.exports = withNativeWind(config, { input: './global.css' });
+// Add resolution for .icon files
+const { assetExts } = config.resolver;
+config.resolver.assetExts = [...assetExts, 'bin'];
+
+module.exports = config;

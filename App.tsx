@@ -1,13 +1,16 @@
-import { ScreenContent } from 'components/ScreenContent';
+import 'react-native-gesture-handler';
+import React from 'react';
+import { View } from 'react-native';
+import { ExpoRoot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
-import './global.css';
-
 export default function App() {
+  const ctx = require.context('./app');
+  
   return (
     <>
-      <ScreenContent title="Home" path="App.tsx"></ScreenContent>
       <StatusBar style="auto" />
+      <ExpoRoot context={ctx} />
     </>
   );
 }

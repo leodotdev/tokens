@@ -1,6 +1,7 @@
-import { Text, View } from 'react-native';
-
+import { Text, View, StyleSheet } from 'react-native';
 import { EditScreenInfo } from './EditScreenInfo';
+import { tailwindStyles } from '../nativewind-style';
+import { useTheme } from '../contexts/ThemeContext';
 
 type ScreenContentProps = {
   title: string;
@@ -9,17 +10,40 @@ type ScreenContentProps = {
 };
 
 export const ScreenContent = ({ title, path, children }: ScreenContentProps) => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  
   return (
-    <View className={styles.container}>
-      <Text className={styles.title}>{title}</Text>
-      <View className={styles.separator} />
+    <View style={styles.container}>
+      <Text style={[
+        styles.title, 
+        isDark ? tailwindStyles.darkText : tailwindStyles.lightText
+      ]}>
+        {title}
+      </Text>
+      <View style={[
+        styles.divider, 
+        isDark ? { backgroundColor: '#3F3F46' } : { backgroundColor: '#E4E4E7' }
+      ]} />
       <EditScreenInfo path={path} />
       {children}
     </View>
   );
 };
-const styles = {
-  container: `items-center flex-1 justify-center`,
-  separator: `h-[1px] my-7 w-4/5 bg-gray-200`,
-  title: `text-xl font-bold`,
-};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  divider: {
+    height: 1,
+    width: '80%',
+    marginVertical: 28,
+  }
+});
